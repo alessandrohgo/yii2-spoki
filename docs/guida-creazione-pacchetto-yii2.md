@@ -50,12 +50,23 @@ nome-pacchetto/
 }
 ```
 
-**Due trappole in cui si cade sempre, incontrate creando `yii2-spoki`:**
+**Tre trappole in cui si cade sempre, incontrate creando `yii2-spoki`:**
 1. `yiisoft/yii2` dipende da pacchetti `bower-asset/*` — senza il repository `asset-packagist.org`
    Composer fallisce con "could not find package bower-asset/jquery". Va sempre aggiunto.
 2. Composer blocca di default il plugin `yiisoft/yii2-composer` per sicurezza
    ("contains a Composer plugin which is blocked by your allow-plugins config") — va autorizzato
    esplicitamente in `config.allow-plugins`, altrimenti l'installazione si ferma.
+3. `vendor/autoload.php` (l'autoload standard di Composer) **non** rende disponibile la classe
+   globale `Yii` — Yii2 non la registra come autoload PSR-4/files, va richiesta esplicitamente.
+   Altrimenti i test falliscono con `Error: Class "Yii" not found` appena si istanzia qualunque
+   `yii\base\Component`. Serve un bootstrap dedicato per i test:
+   ```php
+   // tests/bootstrap.php
+   require __DIR__ . '/../vendor/autoload.php';
+   require __DIR__ . '/../vendor/yiisoft/yii2/Yii.php';
+   ```
+   e puntare `phpunit.xml` a quello (`bootstrap="tests/bootstrap.php"`) invece che
+   direttamente a `vendor/autoload.php`.
 
 ## 4. Test: PHPUnit puro, senza rete reale
 
