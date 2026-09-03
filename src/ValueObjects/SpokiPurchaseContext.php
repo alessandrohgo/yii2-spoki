@@ -15,6 +15,18 @@ namespace AlessandroHgo\Yii2Spoki\ValueObjects;
 final class SpokiPurchaseContext
 {
     /**
+     * Chiavi di `metadata` riconosciute da {@see \AlessandroHgo\Yii2Spoki\Jobs\SpokiActivationJob}
+     * per creare/attivare l'account Spoki. L'app ospite deve valorizzarle in
+     * {@see \AlessandroHgo\Yii2Spoki\Contracts\SpokiPurchaseGatewayInterface::findPendingPurchase()}.
+     */
+    public const string METADATA_OWNER_REFERENCE = 'ownerReference';
+    public const string METADATA_EMAIL = 'email';
+    public const string METADATA_FIRST_NAME = 'firstName';
+    public const string METADATA_ACCOUNT_NAME = 'accountName';
+    public const string METADATA_COUNTRY = 'country';
+    public const string METADATA_COUNTRY_CODE = 'countryCode';
+
+    /**
      * @param string $purchaseReference Identificatore opaco lato host (un id ordine, un id
      *   transazione, o qualunque altra cosa l'host usi per ritrovare l'acquisto).
      * @param int $amountInCents Importo in centesimi, per evitare errori di arrotondamento.
