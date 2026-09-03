@@ -3,11 +3,9 @@
 Estensione Yii2 per l'integrazione con [Spoki](https://spoki.app) (attivazione account WhatsApp
 Light, onboarding, iframe, ricariche).
 
-> **Stato**: scheletro di pratica. La logica reale del modulo (client API, contracts per
-> ordini/fatturazione/notifiche, adapter) sarà portata qui una volta completato il
-> disaccoppiamento dall'applicazione aziendale che lo usa oggi. Vedi
-> `docs/private/spoki-modulo-riusabile-implementation-plan.md` (cartella privata, non pubblicata)
-> per il piano completo.
+> **Stato**: in costruzione. Presenti: client API (`SpokiService`), modello account
+> (`SpokiAccount`), contracts, e i job di attivazione. Mancano ancora i controller/viste per
+> onboarding, dashboard e iframe.
 
 ## Perché un'estensione Yii2 e non un SDK PHP puro
 
@@ -47,14 +45,35 @@ Nell'app ospite, aggiungi un path repository che punta a questa cartella:
 }
 ```
 
-Poi registra il modulo in `common/config/main.php` (o nella config dell'app):
+Poi registra il modulo nella configurazione dell'app, impostando esplicitamente `viewPath` e
+`controllerNamespace` (il modulo non li indovina in base all'id dell'applicazione):
 
 ```php
 'modules' => [
     'spoki' => [
         'class' => \AlessandroHgo\Yii2Spoki\SpokiModule::class,
+        'viewPath' => '@app/modules/spoki/views',
+        'controllerNamespace' => 'app\modules\spoki\controllers',
     ],
 ],
+```
+
+Configura `SpokiService` (baseUrl, apiKey) tramite il DI container, nel bootstrap dell'app:
+
+```php
+Yii::$container->set(\AlessandroHgo\Yii2Spoki\SpokiService::class, [
+    'class' => \AlessandroHgo\Yii2Spoki\SpokiService::class,
+    'baseUrl' => 'https://api.spoki.com/api/1',
+    'apiKey' => getenv('SPOKI_API_KEY'),
+]);
+```
+
+Infine registra i tuoi 3 adapter per le interfacce del modulo (vedi sezione precedente):
+
+```php
+Yii::$container->set(\AlessandroHgo\Yii2Spoki\Contracts\SpokiPurchaseGatewayInterface::class, MyPurchaseGateway::class);
+Yii::$container->set(\AlessandroHgo\Yii2Spoki\Contracts\SpokiInvoicingInterface::class, MyInvoicing::class);
+Yii::$container->set(\AlessandroHgo\Yii2Spoki\Contracts\SpokiNotifierInterface::class, MyNotifier::class);
 ```
 
 ## Installazione da GitHub (dopo la pubblicazione)

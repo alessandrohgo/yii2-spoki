@@ -4,27 +4,38 @@ declare(strict_types=1);
 
 namespace AlessandroHgo\Yii2Spoki;
 
+use Yii;
 use yii\base\Module;
 
 /**
- * Modulo Yii2 per l'integrazione Spoki.
+ * Modulo Yii2 per l'integrazione con Spoki (attivazione account WhatsApp Light, onboarding,
+ * iframe, ricariche).
  *
- * Passo di pratica: verifica che il modulo, installato via Composer in un'altra app Yii2,
- * si registri e si istanzi correttamente. La logica reale (contracts/adapter per
- * ordini/fatturazione/notifiche) verrà portata qui solo dopo aver completato il
- * disaccoppiamento dall'app aziendale ospite (piano in `docs/private/`, non pubblicato).
+ * L'app ospite registra il modulo nella propria configurazione, impostando `viewPath` e
+ * `controllerNamespace` secondo le proprie esigenze (es. viste diverse per un'app frontend e
+ * una backend) — il modulo non indovina nulla in base all'id dell'applicazione:
+ *
+ * ```php
+ * 'modules' => [
+ *     'spoki' => [
+ *         'class' => \AlessandroHgo\Yii2Spoki\SpokiModule::class,
+ *         'viewPath' => '@app/modules/spoki/views',
+ *         'controllerNamespace' => 'app\modules\spoki\controllers',
+ *     ],
+ * ],
+ * ```
+ *
+ * La configurazione di {@see SpokiService} (baseUrl, apiKey) è responsabilità dell'app ospite,
+ * tramite il proprio binding DI — vedi il docblock di SpokiService per un esempio.
  */
 class SpokiModule extends Module
 {
-    public const VERSION = '0.1.0';
-
-    /**
-     * Restituisce la versione del modulo installato.
-     *
-     * @return string La versione corrente del pacchetto.
-     */
-    public function version(): string
+    public function init(): void
     {
-        return self::VERSION;
+        parent::init();
+
+        if (!Yii::$container->has(SpokiService::class)) {
+            Yii::$container->set(SpokiService::class, SpokiService::class);
+        }
     }
 }
