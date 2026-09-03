@@ -5,8 +5,9 @@ Light, onboarding, iframe, ricariche).
 
 > **Stato**: scheletro di pratica. La logica reale del modulo (client API, contracts per
 > ordini/fatturazione/notifiche, adapter) sarà portata qui una volta completato il
-> disaccoppiamento dal progetto Yoti. Vedi `docs/private/spoki-modulo-riusabile-implementation-plan.md`
-> nel repository Yoti per il piano completo.
+> disaccoppiamento dall'applicazione aziendale che lo usa oggi. Vedi
+> `docs/private/spoki-modulo-riusabile-implementation-plan.md` (cartella privata, non pubblicata)
+> per il piano completo.
 
 ## Perché un'estensione Yii2 e non un SDK PHP puro
 
@@ -17,8 +18,8 @@ integra nel DI container dell'applicazione ospite. Per questo il pacchetto usa
 
 ## Come si adatta ad app diverse
 
-Ogni applicazione ospite ha un proprio modo di gestire ordini, pagamenti e fatturazione (Yoti ha
-`Order`/`AccountPayment`/`Message`, un'altra app potrebbe non avere il concetto di "ordine"
+Ogni applicazione ospite ha un proprio modo di gestire ordini, pagamenti e fatturazione (un'app
+può avere `Order`/`AccountPayment`/`Message`, un'altra potrebbe non avere il concetto di "ordine"
 affatto). Il modulo non dipende mai direttamente da queste classi: espone delle interfacce
 (contracts) che l'app ospite implementa con i propri adapter e registra nel DI container di
 Yii2. Il modulo chiede "dammi qualcosa che sa rispondere a queste domande", non "dammi la classe
@@ -33,7 +34,7 @@ vendor/bin/phpunit
 
 ## Installazione in un'app Yii2 (sviluppo locale, prima della pubblicazione)
 
-Nell'app ospite (es. Yoti), aggiungi un path repository che punta a questa cartella:
+Nell'app ospite, aggiungi un path repository che punta a questa cartella:
 
 ```json
 "repositories": [

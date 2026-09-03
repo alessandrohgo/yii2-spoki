@@ -59,12 +59,12 @@ nome-pacchetto/
 
 ## 4. Test: PHPUnit puro, senza rete reale
 
-Come `ventoh/active-campaign-sdk`: PHPUnit (non Codeception, che è legato a Yii2/Yoti), niente
+Come `ventoh/active-campaign-sdk`: PHPUnit (non Codeception, legato all'app aziendale ospite), niente
 mock quando possibile per gli SDK con sandbox reale; per un'estensione Yii2 come questa, i test
 verificano che le classi si istanzino e si comportino correttamente **senza bisogno di un'app
 Yii2 completa avviata** (niente `Yii::$app`), così restano veloci e non richiedono setup.
 
-Comando di verifica (in un container isolato, senza toccare l'ambiente Lando di Yoti):
+Comando di verifica (in un container isolato, senza toccare l'ambiente Lando dell'app ospite):
 ```bash
 docker run --rm -v $(pwd):/app -w /app composer:2 composer install --no-interaction
 docker run --rm -v $(pwd):/app -w /app php:8.3-cli vendor/bin/phpunit
@@ -73,7 +73,7 @@ docker run --rm -v $(pwd):/app -w /app php:8.3-cli vendor/bin/phpunit
 ## 5. Ciclo di sviluppo: prima locale, poi pubblicato
 
 **Fase A — sviluppo locale (path repository), nessuna pubblicazione**
-Nell'app che consuma il pacchetto (es. Yoti):
+Nell'app che consuma il pacchetto:
 ```json
 "repositories": [{ "type": "path", "url": "../nome-pacchetto" }],
 "require": { "vendor/nome-pacchetto": "@dev" }

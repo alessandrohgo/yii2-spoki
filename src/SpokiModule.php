@@ -12,7 +12,7 @@ use yii\base\Module;
  * Passo di pratica: verifica che il modulo, installato via Composer in un'altra app Yii2,
  * si registri e si istanzi correttamente. La logica reale (contracts/adapter per
  * ordini/fatturazione/notifiche) verrà portata qui solo dopo aver completato il
- * disaccoppiamento da Yoti già pianificato in `docs/private/spoki-modulo-riusabile-implementation-plan.md`.
+ * disaccoppiamento dall'app aziendale ospite (piano in `docs/private/`, non pubblicato).
  */
 class SpokiModule extends Module
 {
