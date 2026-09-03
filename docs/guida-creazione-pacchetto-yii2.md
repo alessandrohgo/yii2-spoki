@@ -101,3 +101,33 @@ Ogni modifica al pacchetto è immediatamente visibile nell'app ospite (symlink),
   configurazione minima, come registrare il modulo).
 - **Questa guida** (`docs/guida-creazione-pacchetto-yii2.md`): il "come si fa", riusabile per il
   prossimo pacchetto — va aggiornata ogni volta che si scopre una nuova trappola o convenzione.
+
+## 7. Progettare interfacce domain-neutral, non "come le chiama la mia app"
+
+Quando si disaccoppia un modulo tramite interfacce (Dependency Inversion), è facile copiare nel
+nome dell'interfaccia il vocabolario dell'app da cui si estrae il codice — es. `OrderGateway`,
+`closeOrder()` — perché è lì che quella logica vive oggi. È un errore: un'altra app che consuma il
+modulo potrebbe non avere affatto quel concetto (niente "ordini"), gestirlo con un sistema esterno
+diverso, o innescare l'azione in un momento diverso del flusso (es. pagamento richiesto **dopo**
+un'attivazione invece che prima).
+
+Il meccanismo a interfacce/DI risolve già da solo "sistema diverso" o "azione non necessaria": chi
+consuma il modulo scrive semplicemente un adapter no-op per l'interfaccia che non gli serve. Quello
+che *non* risolve da solo è il naming: un metodo chiamato `closeOrder()` costringe chiunque lo
+implementi a ragionare in termini di "ordine" anche se il suo dominio non ne ha uno.
+
+**Regola pratica**: quando si nomina un'interfaccia o un metodo di un modulo condiviso, chiedersi
+"questo nome ha senso per un'app che non assomiglia affatto a quella da cui sto estraendo il
+codice?". Se la risposta è no, usare un termine più neutro (es. `Purchase` invece di `Order`,
+`markFulfilled()` invece di `closeOrder()`) che descriva **cosa il modulo chiede**, non **come
+l'app di origine chiama le cose**.
+
+## 8. Materiale privato di pianificazione: nel repository, ma mai pubblicato
+
+I documenti di pianificazione interni (piani di refactoring, note su come un'app aziendale usa
+oggi il modulo, nomi di classi/tabelle specifici di quell'app) sono utili come riferimento locale
+mentre si lavora, ma non vanno mai pubblicati: rivelerebbero dettagli interni dell'azienda e
+non hanno valore per chi installa il pacchetto. Vanno tenuti in una cartella dedicata e
+**gitignorata** (qui `docs/private/`), mai nella cartella `docs/` tracciata. Prima di scrivere
+qualunque contenuto nei file tracciati (`README.md`, `docs/*.md` pubblici, docblock nel codice),
+verificare che non contengano il nome dell'app aziendale di origine o altri dettagli interni.

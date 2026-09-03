@@ -18,12 +18,14 @@ integra nel DI container dell'applicazione ospite. Per questo il pacchetto usa
 
 ## Come si adatta ad app diverse
 
-Ogni applicazione ospite ha un proprio modo di gestire ordini, pagamenti e fatturazione (un'app
-può avere `Order`/`AccountPayment`/`Message`, un'altra potrebbe non avere il concetto di "ordine"
-affatto). Il modulo non dipende mai direttamente da queste classi: espone delle interfacce
-(contracts) che l'app ospite implementa con i propri adapter e registra nel DI container di
-Yii2. Il modulo chiede "dammi qualcosa che sa rispondere a queste domande", non "dammi la classe
-Order".
+Ogni applicazione ospite ha un proprio modo di gestire acquisti, pagamenti e fatturazione — una
+può avere ordini/`Order`, un'altra potrebbe non avere questo concetto affatto, o richiedere il
+pagamento dopo l'attivazione invece che prima. Il modulo non dipende mai direttamente da classi
+specifiche di un'app: espone delle interfacce (contracts), con nomi volutamente neutri
+(es. `SpokiPurchaseGatewayInterface`, non "Order"), che l'app ospite implementa con i propri
+adapter e registra nel DI container di Yii2. Un'app che non ha bisogno di una determinata
+interfaccia (es. nessuna fatturazione automatica) scrive semplicemente un adapter no-op. Il
+modulo chiede "dammi qualcosa che sa rispondere a queste domande", mai "dammi la tua classe X".
 
 ## Sviluppo
 
