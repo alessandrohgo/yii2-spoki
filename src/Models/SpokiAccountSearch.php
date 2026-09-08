@@ -9,6 +9,11 @@ use yii\data\ActiveDataProvider;
 
 /**
  * Modello di ricerca admin per {@see SpokiAccount}.
+ *
+ * `search()` non è coperto da test automatici in questo repository: istanzia un
+ * `ActiveDataProvider`, che richiede una connessione al database già in fase di costruzione,
+ * non disponibile in questo repository standalone. Va verificato con un test funzionale dopo
+ * l'installazione in un'app Yii2 reale.
  */
 class SpokiAccountSearch extends SpokiAccount
 {

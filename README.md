@@ -9,13 +9,15 @@ installa.
 
 ## Cosa contiene
 
-- **`SpokiService`** — client per tutti gli endpoint API Spoki (partner e account diretto).
+- **[`src/SpokiService.php`](src/SpokiService.php)** — **un solo file**, con tutti i 12 metodi
+  (una chiamata API ciascuno). Non è diviso in più classi: apri quel file e trovi tutto.
   Ogni metodo ritorna sempre un oggetto uniforme: `{ success, status, message, data }`. Nessuna
   eccezione lanciata per errori HTTP/API — vedi [Gestione errori](#gestione-errori).
-- **`SpokiAccount`** (+ `SpokiAccountQuery`, `SpokiAccountSearch`) — ActiveRecord generico per
-  salvare gli account Spoki collegati alla propria app. Usa `owner_reference`, un riferimento
-  opaco deciso da chi installa il pacchetto (non presuppone una tabella "user" specifica).
-- **Migrazione** — crea la tabella `spoki_account`.
+- **`src/Models/SpokiAccount.php`** (+ `SpokiAccountQuery`, `SpokiAccountSearch`) — ActiveRecord
+  generico per salvare gli account Spoki collegati alla propria app. Usa `owner_reference`, un
+  riferimento opaco deciso da chi installa il pacchetto (non presuppone una tabella "user"
+  specifica).
+- **`src/migrations/`** — crea la tabella `spoki_account`.
 
 ## Metodi disponibili
 
@@ -34,20 +36,92 @@ installa.
 | `getAuthenticationToken` | `POST /auth/get_authentication_token/` | Genera il token per l'iframe (vedi sotto) |
 | `updatePartnerRole` | `POST /partner-roles/{id}/update_role/` | Aggiorna un partner role — **corpo della richiesta non documentato con certezza**, verificare prima dell'uso in produzione |
 
+## Esempio completo: attivare un account come Partner
+
+Codice illustrativo (senza gestione errori per brevità — in produzione controlla sempre
+`$result->success` dopo ogni chiamata, vedi [Gestione errori](#gestione-errori)):
+
+```php
+use AlessandroHgo\Yii2Spoki\SpokiService;
+use Yii;
+
+/** @var SpokiService $spoki */
+$spoki = Yii::$container->get(SpokiService::class); // usa la propria API key Partner
+
+// 1. Crea l'account cliente su Spoki
+$result = $spoki->addSvClients([[
+    'email' => 'cliente@esempio.com',
+    'first_name' => 'Mario',
+    'account_name' => 'Azienda SRL',
+    'country' => 'it',
+    'country_code' => 'IT',
+    'vat_amount' => 2200,
+]]);
+$spokiAccountId = $result->data[0]->id;
+
+// 2. Genera l'API key dell'account (da qui in poi usala per le chiamate "a nome" dell'account)
+$result = $spoki->createApiKeyForAccount(['account' => $spokiAccountId]);
+$accountApiKey = $result->data->api_key;
+
+// 3. Imposta i margini
+$spoki->setProfits([
+    'account_id' => $spokiAccountId,
+    'conversation_profit_margin' => 40,
+    // ...gli altri margini a 0 se non servono
+]);
+
+// 4. Genera il link di onboarding che il cliente deve completare
+$result = $spoki->onboarding(['account' => $spokiAccountId]);
+$onboardingUrl = $result->data->redirect_url; // mostralo/mandalo al cliente
+
+// 5. (Opzionale) accredita subito un po' di credito
+$spoki->createSubrecharge([
+    'destination_account' => $spokiAccountId,
+    'amount' => 5000, // "millesimi" — vedi la documentazione API Spoki per l'unità esatta
+]);
+```
+
+**Dopo che il cliente ha completato l'onboarding** (webhook/notifica Spoki, gestita dal tuo
+modulo interno, non da questo SDK):
+
+```php
+// 6. Trova il ruolo dell'account per email
+$result = $spoki->getRoles('cliente@esempio.com', $accountApiKey);
+$roleId = $result->data->results[0]->id;
+
+// 7. Crea l'utente di servizio (necessario per l'iframe)
+$result = $spoki->addServiceUser([
+    'role' => 'Administrator',
+    'email' => 'cliente@esempio.com',
+    'name' => 'Mario Rossi',
+], $accountApiKey);
+$serviceUserId = $result->data->id;
+$emailIframe = $result->data->user->email; // salvala, serve per l'iframe
+
+// 8. Genera la private key finale — salvala, serve per l'iframe (vedi sezione sotto)
+$result = $spoki->generatePrivateKey($serviceUserId, $accountApiKey);
+$privateKey = $result->data->value;
+```
+
 ## Embedding via iframe: il flusso completo
 
-1. `generatePrivateKey($roleId)` → salva il valore restituito come `private_key` sull'account.
-2. Quando serve mostrare l'iframe, `getAuthenticationToken($email, $privateKey)` → restituisce
-   `{ token, uid }`.
-3. Costruisci l'URL dell'iframe:
-   ```
-   https://spoki.app/{pagina}?auth_token={token}&auth_uid={uid}&language={it|en}
-   ```
-   dove `{pagina}` è una sezione valida (es. `dashboard`, `chats`, `templates`, `automations`,
-   `contacts`, `lists`, `tags`).
+Una volta fatti i passi 6-8 sopra (una sola volta per account), per mostrare l'iframe:
 
-Il passo 2 va rifatto a ogni caricamento dell'iframe (il token non è persistente); il passo 1 va
-fatto una sola volta per account.
+```php
+use AlessandroHgo\Yii2Spoki\SpokiService;
+
+/** @var SpokiService $spoki */
+$result = $spoki->getAuthenticationToken($emailIframe, $privateKey, $accountApiKey);
+$token = $result->data->token;
+$uid = $result->data->uid;
+
+$iframeUrl = "https://spoki.app/dashboard?auth_token={$token}&auth_uid={$uid}&language=it";
+// stampa $iframeUrl in un tag <iframe src="...">
+```
+
+Sezioni valide al posto di `dashboard`: `chats`, `templates`, `automations`, `contacts`, `lists`,
+`tags`. La chiamata a `getAuthenticationToken` va rifatta **a ogni caricamento** dell'iframe (il
+token non è persistente); `generatePrivateKey` va fatto **una sola volta** per account.
 
 ## Cosa NON contiene (di proposito)
 
@@ -68,6 +142,26 @@ distinzione nel client:
 
 Il modulo interno del progetto decide quali metodi chiamare e in che ordine, in base al proprio
 caso d'uso.
+
+**Come funziona in pratica**: `SpokiService` ha una `apiKey` di default, configurata una volta
+sola nel bootstrap (di solito la tua API key Partner — vedi
+[Installazione](#installazione-in-unapp-yii2-sviluppo-locale-prima-della-pubblicazione)). Ogni
+metodo accetta anche un **ultimo parametro opzionale** per usare un'API key diversa solo per
+quella chiamata (quella dell'account cliente):
+
+```php
+// Usa l'API key di default (Partner) configurata nel bootstrap — nessun parametro extra
+$spoki->addSvClients([...]);
+
+// Usa l'API key DELL'ACCOUNT invece di quella Partner di default — ultimo parametro
+$spoki->getRoles('cliente@esempio.com', $accountApiKey);
+$spoki->addServiceUser([...], $accountApiKey);
+$spoki->generatePrivateKey($roleId, $accountApiKey);
+```
+
+Non c'è una regola universale su quale API key serva per ogni endpoint: dipende da cosa stai
+facendo (vedi la tabella sopra e l'esempio completo sotto). In caso di dubbio su un endpoint
+specifico, verifica nella documentazione Spoki.
 
 ## Gestione errori
 
@@ -154,6 +248,13 @@ yii migrate --migrationPath=@vendor/alessandrohgo/yii2-spoki/src/migrations
 
 Poi, nel modulo interno del tuo progetto, usa `SpokiService` e `SpokiAccount` per costruire la
 tua logica specifica (job, controller, viste).
+
+**Regola per le colonne di `spoki_account`**: la migrazione di questo pacchetto contiene solo
+colonne che corrispondono a un dato realmente restituito da uno dei metodi di `SpokiService`
+(es. `spoki_account_id` da `addSvClients`, `private_key` da `generatePrivateKey`), più il minimo
+bookkeeping interno (`owner_reference`, `status`, timestamp). Se il tuo progetto ha bisogno di
+altre colonne specifiche del tuo dominio, crea una migrazione **nel tuo modulo interno** che
+estende o affianca questa tabella — non modificare la migrazione del pacchetto.
 
 ## Installazione da GitHub (dopo la pubblicazione)
 

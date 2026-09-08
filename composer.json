@@ -2,7 +2,12 @@
     "name": "alessandrohgo/yii2-spoki",
     "description": "Client API Spoki per Yii2 (SDK): tutte le chiamate API, gestione errori, e un modello/tabella generico per salvare gli account. Nessuna logica di business specifica di un progetto.",
     "type": "yii2-extension",
-    "license": "proprietary",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "alessandrohgo"
+        }
+    ],
     "repositories": [
         {
             "type": "composer",
