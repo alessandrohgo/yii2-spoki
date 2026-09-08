@@ -49,6 +49,8 @@ class SpokiService extends Component
     public const string ADD_SERVICE_USER           = '/roles/add_service_user/';
     public const string GET_ACCOUNT_SUMMARY        = '/accounts/{id}/';
     public const string GET_ACCOUNT_REPORT         = '/partners/get_account_report/';
+    public const string GET_AUTHENTICATION_TOKEN   = '/auth/get_authentication_token/';
+    public const string UPDATE_PARTNER_ROLE        = '/partner-roles/{id}/update_role/';
 
     public string $baseUrl = '';
     public ?string $apiKey = null;
@@ -213,6 +215,40 @@ class SpokiService extends Component
 
         // Nessun override API key: usa quella Partner configurata sul servizio.
         return $this->call(self::TYPE_GET, self::GET_ACCOUNT_REPORT, $params, null);
+    }
+
+    /**
+     * POST /auth/get_authentication_token/
+     * Genera il token di autenticazione (`token`, `uid`) usato per costruire l'URL
+     * dell'iframe (`https://spoki.app/{pagina}?auth_token={token}&auth_uid={uid}`).
+     *
+     * @param string $email Email dell'account (spoki_account.email_iframe).
+     * @param string $privateKey Private key generata con {@see generatePrivateKey()}.
+     * @param string|null $apiKey API key da usare (opzionale, default: API key Partner configurata).
+     *                            Nell'uso reale va sempre passata l'API key Cliente dell'account.
+     */
+    public function getAuthenticationToken(string $email, string $privateKey, ?string $apiKey = null): object
+    {
+        return $this->call(self::TYPE_POST, self::GET_AUTHENTICATION_TOKEN, [
+            'email' => $email,
+            'private_key' => $privateKey,
+        ], $apiKey);
+    }
+
+    /**
+     * POST /partner-roles/{id}/update_role/
+     * Aggiorna un partner role. Il corpo esatto richiesto dall'API non è documentato con
+     * certezza in questo SDK: passa i campi che l'endpoint richiede.
+     *
+     * @param int $partnerRoleId ID del partner role.
+     * @param array $payload Dati da aggiornare.
+     * @param string|null $apiKey API key da usare (opzionale, default: API key Partner configurata).
+     */
+    public function updatePartnerRole(int $partnerRoleId, array $payload, ?string $apiKey = null): object
+    {
+        $path = str_replace('{id}', (string) $partnerRoleId, self::UPDATE_PARTNER_ROLE);
+
+        return $this->call(self::TYPE_POST, $path, $payload, $apiKey);
     }
 
     /**

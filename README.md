@@ -17,6 +17,38 @@ installa.
   opaco deciso da chi installa il pacchetto (non presuppone una tabella "user" specifica).
 - **Migrazione** — crea la tabella `spoki_account`.
 
+## Metodi disponibili
+
+| Metodo | Endpoint | Uso |
+|---|---|---|
+| `addSvClients` | `POST /partners/add_sv_clients/` | Partner: crea un nuovo account cliente |
+| `createApiKeyForAccount` | `POST /partners/create_api_key_for_account/` | Partner: genera l'API key per un account |
+| `createSubrecharge` | `POST /partners/create_subrecharge/` | Partner: ricarica credito su un account |
+| `onboarding` | `POST /partners/onboarding/` | Partner: genera il link di onboarding |
+| `setProfits` | `POST /partners/set_profits/` | Partner: imposta i margini di profitto |
+| `getAccountReport` | `GET /partners/get_account_report/` | Partner: report per intervallo di date |
+| `getRoles` | `GET /roles/` | Cerca ruoli, opzionalmente per email |
+| `addServiceUser` | `POST /roles/add_service_user/` | Crea un utente di servizio |
+| `generatePrivateKey` | `POST /roles/{id}/generate_private_key/` | Genera la private key per l'iframe |
+| `getAccountSummary` | `GET /accounts/{id}/` | Riepilogo account (credito, stato) |
+| `getAuthenticationToken` | `POST /auth/get_authentication_token/` | Genera il token per l'iframe (vedi sotto) |
+| `updatePartnerRole` | `POST /partner-roles/{id}/update_role/` | Aggiorna un partner role — **corpo della richiesta non documentato con certezza**, verificare prima dell'uso in produzione |
+
+## Embedding via iframe: il flusso completo
+
+1. `generatePrivateKey($roleId)` → salva il valore restituito come `private_key` sull'account.
+2. Quando serve mostrare l'iframe, `getAuthenticationToken($email, $privateKey)` → restituisce
+   `{ token, uid }`.
+3. Costruisci l'URL dell'iframe:
+   ```
+   https://spoki.app/{pagina}?auth_token={token}&auth_uid={uid}&language={it|en}
+   ```
+   dove `{pagina}` è una sezione valida (es. `dashboard`, `chats`, `templates`, `automations`,
+   `contacts`, `lists`, `tags`).
+
+Il passo 2 va rifatto a ogni caricamento dell'iframe (il token non è persistente); il passo 1 va
+fatto una sola volta per account.
+
 ## Cosa NON contiene (di proposito)
 
 Nessun job, controller, vista, o interfaccia di disaccoppiamento: quella è logica specifica di
@@ -63,6 +95,26 @@ $onboardingUrl = $result->data->redirect_url;
 
 Chi consuma l'SDK decide cosa fare in caso di errore (log, retry, eccezione propria) — l'SDK si
 limita a segnalarlo in modo uniforme, senza interrompere il flusso con un'eccezione non gestita.
+
+## Endpoint documentati da Spoki ma NON implementati in questo SDK
+
+Trovati nella documentazione ufficiale Spoki, ma il path/parametri esatti non sono verificati
+(non c'è un ambiente di test Spoki: ogni chiamata reale crea account o modifica ruoli veri, quindi
+non si possono verificare "per tentativi"). Non implementati finché non saranno confermati da un
+uso reale o da un riferimento certo alla documentazione.
+
+**Partners**: List/search partners (segnato deprecato da Spoki), Get associated accounts,
+Revoke API Key For Account, Move Credit From Account (Software Vendor Only), Get account
+forecasts.
+
+**Roles**: Retrieve role (singolo, by id), Has Private Key, Update Role (`/roles/{id}/...`,
+diverso da `updatePartnerRole` che usa `/partner-roles/...`), Delete role.
+
+**Partner Roles**: List/search, Retrieve, Has Private Key, Delete role (Generate Private Key e
+Update Role di questa categoria sono già coperti da `generatePrivateKey`/`updatePartnerRole`).
+
+**Accounts**: List/search/filter accounts, Retrieve account by phone, Current report, Create
+Onboarding Link (variante lato account, diversa da `onboarding()` che è quella Partner).
 
 ## Sviluppo
 

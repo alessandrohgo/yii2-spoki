@@ -150,7 +150,7 @@ verificare che non contengano il nome dell'app aziendale di origine o altri dett
 
 ## 9. Confine tra "SDK riusabile" e "orchestrazione/logica di business"
 
-Dopo aver costruito contracts, value object e job per disaccoppiare Spoki da Yoti (§7), è emerso
+Dopo aver costruito contracts, value object e job per disaccoppiare Spoki dall'app aziendale che lo usava (§7), è emerso
 un punto più a monte: **cosa deve davvero contenere il pacchetto riusabile**? Due risposte
 possibili, con conseguenze molto diverse:
 

@@ -152,6 +152,24 @@ class SpokiServiceTest extends TestCase
     }
 
     /**
+     * Verifica il path esatto dell'endpoint di autenticazione per l'iframe, confermato da
+     * codice reale in produzione (chiamata lato client con email + private_key).
+     */
+    public function testGetAuthenticationTokenUsesConfirmedPath(): void
+    {
+        $this->assertSame('/auth/get_authentication_token/', SpokiService::GET_AUTHENTICATION_TOKEN);
+    }
+
+    /**
+     * Verifica il path esatto per l'aggiornamento di un partner role, confermato dal
+     * riferimento già presente nel codice sorgente originale (mai chiamato, ma path noto).
+     */
+    public function testUpdatePartnerRoleUsesConfirmedPath(): void
+    {
+        $this->assertSame('/partner-roles/{id}/update_role/', SpokiService::UPDATE_PARTNER_ROLE);
+    }
+
+    /**
      * Verifica che array associativi annidati diventino stdClass, mantenendo le liste come
      * array di oggetti — comportamento richiesto dai consumatori che leggono i dati come oggetti.
      */
