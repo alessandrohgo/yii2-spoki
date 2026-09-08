@@ -152,9 +152,9 @@ class SpokiAccount extends ActiveRecord
     }
 
     /**
-     * WhatsApp Light attivo: esiste uno `spoki_account` per l'owner con stato {@see self::STATUS_ACTIVE}.
+     * Spoki attivo: esiste uno `spoki_account` per l'owner con stato {@see self::STATUS_ACTIVE}.
      */
-    public static function isWhatsappLightActiveForOwner(string $ownerReference): bool
+    public static function isActiveForOwner(string $ownerReference): bool
     {
         return self::find()
             ->byOwnerReference($ownerReference)

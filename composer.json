@@ -1,6 +1,6 @@
 {
     "name": "alessandrohgo/yii2-spoki",
-    "description": "Estensione Yii2 per l'integrazione con Spoki (attivazione account WhatsApp Light, onboarding, iframe). Passo di pratica: valida la meccanica repository standalone -> test -> installazione via path repository in un'app Yii2 -> integrazione.",
+    "description": "Client API Spoki per Yii2 (SDK): tutte le chiamate API, gestione errori, e un modello/tabella generico per salvare gli account. Nessuna logica di business specifica di un progetto.",
     "type": "yii2-extension",
     "license": "proprietary",
     "repositories": [
@@ -12,7 +12,6 @@
     "require": {
         "php": "^8.1",
         "yiisoft/yii2": "^2.0",
-        "yiisoft/yii2-queue": "^2.3",
         "php-curl-class/php-curl-class": "^11.0"
     },
     "require-dev": {

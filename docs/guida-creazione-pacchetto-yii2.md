@@ -133,6 +133,11 @@ codice?". Se la risposta è no, usare un termine più neutro (es. `Purchase` inv
 `markFulfilled()` invece di `closeOrder()`) che descriva **cosa il modulo chiede**, non **come
 l'app di origine chiama le cose**.
 
+> **Aggiornamento (2026-09-03)**: questo approccio (contracts + Dependency Inversion dentro il
+> pacchetto) è stato poi **abbandonato** per `yii2-spoki` — vedi §9. Resta valido come tecnica se
+> in futuro si decide davvero di condividere anche l'orchestrazione tra progetti, ma per questo
+> pacchetto si è scelto di non condividerla affatto.
+
 ## 8. Materiale privato di pianificazione: nel repository, ma mai pubblicato
 
 I documenti di pianificazione interni (piani di refactoring, note su come un'app aziendale usa
@@ -142,3 +147,31 @@ non hanno valore per chi installa il pacchetto. Vanno tenuti in una cartella ded
 **gitignorata** (qui `docs/private/`), mai nella cartella `docs/` tracciata. Prima di scrivere
 qualunque contenuto nei file tracciati (`README.md`, `docs/*.md` pubblici, docblock nel codice),
 verificare che non contengano il nome dell'app aziendale di origine o altri dettagli interni.
+
+## 9. Confine tra "SDK riusabile" e "orchestrazione/logica di business"
+
+Dopo aver costruito contracts, value object e job per disaccoppiare Spoki da Yoti (§7), è emerso
+un punto più a monte: **cosa deve davvero contenere il pacchetto riusabile**? Due risposte
+possibili, con conseguenze molto diverse:
+
+1. *"Il pacchetto contiene anche l'orchestrazione"* (l'approccio iniziale): il pacchetto include
+   job che decidono *quando* chiamare quali endpoint in che sequenza per un caso d'uso preciso
+   (es. "attiva l'account dopo un pagamento confermato"), disaccoppiati tramite interfacce che
+   ogni host implementa con un proprio adapter.
+2. *"Il pacchetto è solo l'SDK"* (scelta finale per `yii2-spoki`): il pacchetto contiene **solo**
+   le chiamate API con gestione errori e uno storage generico (modello + tabella). Nessun job,
+   nessuna interfaccia di disaccoppiamento, nessuna assunzione su *quando* o *perché* chiamare un
+   endpoint. Chi installa il pacchetto scrive il proprio modulo interno con la propria logica,
+   usando l'SDK come mattone.
+
+La num. 2 è più semplice da usare e da mantenere: chi installa il pacchetto non deve capire un
+sistema di contracts/adapter per usarlo, gli basta chiamare i metodi dell'SDK. Il costo è che
+l'orchestrazione (potenzialmente simile tra progetti) va riscritta in ognuno — ma è un costo
+accettabile finché non emergono davvero 2+ progetti con la stessa identica orchestrazione da
+condividere: **a quel punto**, e solo allora, ha senso rivalutare l'approccio a contracts (§7).
+
+**Regola pratica**: quando si decide lo scope di un pacchetto riusabile, separare esplicitamente
+"chiamate a un sistema esterno + storage dei dati" (quasi sempre riusabile as-is) da "quando e
+perché chiamarle" (quasi sempre specifico di un progetto) — e default alla scelta più semplice
+(solo SDK) finché non c'è una ragione concreta, con un secondo consumatore reale, per condividere
+anche l'altra parte.

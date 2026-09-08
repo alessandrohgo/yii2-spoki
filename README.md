@@ -1,29 +1,68 @@
 # alessandrohgo/yii2-spoki
 
-Estensione Yii2 per l'integrazione con [Spoki](https://spoki.app) (attivazione account WhatsApp
-Light, onboarding, iframe, ricariche).
+SDK per Yii2 per l'integrazione con [Spoki](https://spoki.app) (attivazione account Spoki,
+onboarding, iframe, ricariche): tutte le chiamate API con gestione errori, più un
+modello/tabella generico per salvare gli account. **Nessuna logica di business**: come e quando
+chiamare gli endpoint, quali dati usare, come collegarli al proprio flusso applicativo (ordini,
+pagamenti, fatturazione, email) è responsabilità del modulo interno di ogni progetto che lo
+installa.
 
-> **Stato**: in costruzione. Presenti: client API (`SpokiService`), modello account
-> (`SpokiAccount`), contracts, e i job di attivazione. Mancano ancora i controller/viste per
-> onboarding, dashboard e iframe.
+## Cosa contiene
 
-## Perché un'estensione Yii2 e non un SDK PHP puro
+- **`SpokiService`** — client per tutti gli endpoint API Spoki (partner e account diretto).
+  Ogni metodo ritorna sempre un oggetto uniforme: `{ success, status, message, data }`. Nessuna
+  eccezione lanciata per errori HTTP/API — vedi [Gestione errori](#gestione-errori).
+- **`SpokiAccount`** (+ `SpokiAccountQuery`, `SpokiAccountSearch`) — ActiveRecord generico per
+  salvare gli account Spoki collegati alla propria app. Usa `owner_reference`, un riferimento
+  opaco deciso da chi installa il pacchetto (non presuppone una tabella "user" specifica).
+- **Migrazione** — crea la tabella `spoki_account`.
 
-Il modulo Spoki non è solo un client HTTP: registra rotte, controller, viste, migrazioni e si
-integra nel DI container dell'applicazione ospite. Per questo il pacchetto usa
-`"type": "yii2-extension"` e dipende da `yiisoft/yii2`, a differenza di un SDK generico
-(es. `ventoh/active-campaign-sdk`) che non ha alcuna dipendenza dal framework.
+## Cosa NON contiene (di proposito)
 
-## Come si adatta ad app diverse
+Nessun job, controller, vista, o interfaccia di disaccoppiamento: quella è logica specifica di
+ogni progetto (es. "attiva l'account dopo che un ordine è stato pagato", "manda un'email quando
+l'attivazione è completata") e va scritta nel modulo interno del progetto che usa questo SDK,
+non qui.
 
-Ogni applicazione ospite ha un proprio modo di gestire acquisti, pagamenti e fatturazione — una
-può avere ordini/`Order`, un'altra potrebbe non avere questo concetto affatto, o richiedere il
-pagamento dopo l'attivazione invece che prima. Il modulo non dipende mai direttamente da classi
-specifiche di un'app: espone delle interfacce (contracts), con nomi volutamente neutri
-(es. `SpokiPurchaseGatewayInterface`, non "Order"), che l'app ospite implementa con i propri
-adapter e registra nel DI container di Yii2. Un'app che non ha bisogno di una determinata
-interfaccia (es. nessuna fatturazione automatica) scrive semplicemente un adapter no-op. Il
-modulo chiede "dammi qualcosa che sa rispondere a queste domande", mai "dammi la tua classe X".
+## Due modalità d'uso: account Partner e cliente diretto
+
+Spoki supporta due modelli, ed entrambi sono coperti dallo stesso `SpokiService`, senza alcuna
+distinzione nel client:
+
+| Modalità | Endpoint tipici | API key da passare |
+|---|---|---|
+| **Partner** (apri/gestisci account per conto di altri clienti) | `addSvClients`, `createApiKeyForAccount`, `setProfits`, `onboarding`, `createSubrecharge` | La propria API key Partner |
+| **Cliente diretto** (un account Spoki già esistente) | `getRoles`, `addServiceUser`, `generatePrivateKey`, `getAccountSummary` | L'API key dell'account stesso (passata come parametro opzionale a ogni metodo) |
+
+Il modulo interno del progetto decide quali metodi chiamare e in che ordine, in base al proprio
+caso d'uso.
+
+## Gestione errori
+
+`SpokiService` non lancia mai eccezioni per errori HTTP o di validazione dell'API Spoki — ogni
+metodo ritorna sempre:
+
+```php
+(object) [
+    'success' => bool,   // true solo per risposte HTTP 2xx
+    'status'  => int,    // status HTTP
+    'message' => ?string, // messaggio d'errore leggibile (estratto da vari formati di risposta Spoki), null se success
+    'data'    => mixed,  // stdClass o array di stdClass con il payload
+]
+```
+
+```php
+$result = $spokiService->onboarding(['account' => $spokiAccountId]);
+if (!$result->success) {
+    // $result->message contiene già un messaggio leggibile
+    Yii::error("Errore onboarding: {$result->message}", __METHOD__);
+    return false;
+}
+$onboardingUrl = $result->data->redirect_url;
+```
+
+Chi consuma l'SDK decide cosa fare in caso di errore (log, retry, eccezione propria) — l'SDK si
+limita a segnalarlo in modo uniforme, senza interrompere il flusso con un'eccezione non gestita.
 
 ## Sviluppo
 
@@ -45,19 +84,6 @@ Nell'app ospite, aggiungi un path repository che punta a questa cartella:
 }
 ```
 
-Poi registra il modulo nella configurazione dell'app, impostando esplicitamente `viewPath` e
-`controllerNamespace` (il modulo non li indovina in base all'id dell'applicazione):
-
-```php
-'modules' => [
-    'spoki' => [
-        'class' => \AlessandroHgo\Yii2Spoki\SpokiModule::class,
-        'viewPath' => '@app/modules/spoki/views',
-        'controllerNamespace' => 'app\modules\spoki\controllers',
-    ],
-],
-```
-
 Configura `SpokiService` (baseUrl, apiKey) tramite il DI container, nel bootstrap dell'app:
 
 ```php
@@ -68,13 +94,14 @@ Yii::$container->set(\AlessandroHgo\Yii2Spoki\SpokiService::class, [
 ]);
 ```
 
-Infine registra i tuoi 3 adapter per le interfacce del modulo (vedi sezione precedente):
+Esegui la migrazione (dal progetto ospite, puntando alla cartella del pacchetto):
 
-```php
-Yii::$container->set(\AlessandroHgo\Yii2Spoki\Contracts\SpokiPurchaseGatewayInterface::class, MyPurchaseGateway::class);
-Yii::$container->set(\AlessandroHgo\Yii2Spoki\Contracts\SpokiInvoicingInterface::class, MyInvoicing::class);
-Yii::$container->set(\AlessandroHgo\Yii2Spoki\Contracts\SpokiNotifierInterface::class, MyNotifier::class);
+```bash
+yii migrate --migrationPath=@vendor/alessandrohgo/yii2-spoki/src/migrations
 ```
+
+Poi, nel modulo interno del tuo progetto, usa `SpokiService` e `SpokiAccount` per costruire la
+tua logica specifica (job, controller, viste).
 
 ## Installazione da GitHub (dopo la pubblicazione)
 
