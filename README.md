@@ -6,6 +6,66 @@ tutte le chiamate API, con gestione errori uniforme. **L'unica cosa che serve da
 l'attivazione, controller per l'iframe) è **completamente facoltativo**: componenti pronti per
 chi vuole automatizzare, mai un vincolo per chi preferisce chiamare l'SDK a mano.
 
+## Cos'è, in pratica, un'attivazione Spoki
+
+Spoki dà accesso a WhatsApp Business API. Un **Partner** (rivenditore — probabilmente tu) apre e
+gestisce account per conto dei propri clienti finali. Il percorso tipico, dal punto di vista del
+Partner:
+
+1. **Crei l'account cliente su Spoki** (`addSvClients`) — fornendo email, nome, ragione sociale
+   e `vat_amount` (l'aliquota IVA da applicare, in centesimi di punto percentuale: `2200` = 22%,
+   l'aliquota italiana ordinaria — usa il valore corretto per il paese/regime fiscale del cliente).
+2. **Generi la sua API key** (`createApiKeyForAccount`) — da qui in poi le chiamate "a nome" di
+   quell'account specifico la useranno.
+3. **Imposti i tuoi margini di guadagno** (`setProfits`) — vedi tabella sotto.
+4. **Generi il link di onboarding** (`onboarding`) e lo mandi al cliente.
+5. **Il cliente completa l'onboarding sul sito di Spoki** (collega il proprio numero WhatsApp
+   Business, verifica Meta, ecc.) — è un processo **asincrono**, fuori dal tuo controllo diretto:
+   può richiedere minuti o ore, per questo serve controllare periodicamente lo stato
+   (`SpokiOnboardingChecker`) invece di aspettarsi una risposta immediata.
+6. **Completato l'onboarding**, crei un utente di servizio e generi una private key
+   (`addServiceUser`, `generatePrivateKey`). **Perché un passaggio a parte**: l'iframe non si
+   autentica con l'API key dell'account (pensata per chiamate server-to-server), ma con un
+   token ottenuto da un'identità dedicata — il "servizio" — proprio per l'accesso web
+   incorporato. È per questo che nasce un secondo indirizzo email (`emailIframe`, quello del
+   servizio) distinto da quello del cliente inserito al passo 1 (`email`, quello dei tuoi dati).
+7. **Da qui in poi l'account è attivo**: il cliente (o tu per suo conto) gestisce chat, template,
+   automazioni tramite l'iframe incorporato.
+
+### Stati dell'account, passo per passo
+
+`SpokiAccountState::$status` (o la colonna `status` se usi `SpokiAccount` del pacchetto)
+segue esattamente i 7 passaggi sopra:
+
+| Stato | Numero | Significa che... |
+|---|---|---|
+| `STATUS_PENDING_REQUEST` | 5 | Hai iniziato la creazione, ma `addSvClients` non ha ancora risposto con successo |
+| `STATUS_ONBOARDING_PENDING` | 10 | Account creato, link di onboarding generato, in attesa che il cliente lo completi (passo 4-5) |
+| `STATUS_ONBOARDING_CONFIRM` | 15 | `SpokiOnboardingChecker` ha rilevato che il cliente ha completato l'onboarding, il job finale sta per partire |
+| `STATUS_QUEUED_JOB` | 20 | Il job finale (`SpokiFinalActivationJob`) è stato accodato, in attesa di esecuzione |
+| `STATUS_ACTIVE` | 25 | Tutto completato (passo 6-7): l'iframe funziona |
+| `STATUS_ERROR` | 30 | Una chiamata è fallita in un punto qualsiasi — controlla i log, il job può essere ritentato |
+
+### Cosa sono i margini di profitto (`setProfits`)
+
+Spoki/Meta addebita un costo per ogni conversazione WhatsApp, diviso per categoria. Il Partner
+può applicare un margine di rivendita (una percentuale) su ciascuna categoria:
+
+| Campo | Categoria di costo |
+|---|---|
+| `sms_profit_margin` | SMS (usato come fallback quando WhatsApp non è raggiungibile) |
+| `utility_profit_margin` | Conversazioni "utility" (es. conferme d'ordine, notifiche di stato) |
+| `authentication_profit_margin` | Conversazioni di autenticazione (es. codici OTP) |
+| `marketing_profit_margin` | Conversazioni marketing |
+| `service_profit_margin` | Conversazioni di assistenza clienti |
+| `conversation_profit_margin` | Conversazioni generiche/altre categorie |
+
+Il valore è una percentuale (es. `40` = 40% di margine su quella categoria). ⚠️ Questo
+significato l'ho ricostruito dai nomi dei campi e da un uso reale osservato (margine 40% solo su
+`conversation`, zero altrove) — non da una documentazione Spoki letta per intero sui dettagli di
+fatturazione. Verifica i valori esatti che ti servono nella documentazione Spoki prima di
+metterli in produzione.
+
 ## Requisiti
 
 - PHP 8.1+
@@ -145,7 +205,8 @@ passaggi: margini di profitto, e — **dopo che il cliente ha completato l'onboa
 creare l'utente di servizio e generare la private key per l'iframe.
 
 ```php
-// Subito dopo la creazione dell'account (opzionale)
+// Subito dopo la creazione dell'account (opzionale) — vedi cosa sono i margini più sopra
+// (sezione "Cosa sono i margini di profitto")
 $spoki->setProfits([
     'account_id' => $spokiAccountId,
     'conversation_profit_margin' => 40,
@@ -168,7 +229,10 @@ $result = $spoki->getRoles('cliente@esempio.com', $accountApiKey);
 $user = $result->data->results[0]->user;
 $fullName = $user->firstname . ' ' . $user->surname;
 
-// Crea l'utente di servizio (necessario per l'iframe)
+// Crea l'utente di servizio (necessario per l'iframe).
+// 'Administrator' è l'unico valore di "role" verificato in uso reale — Spoki potrebbe
+// supportarne altri (es. ruoli con permessi più limitati), ma non li abbiamo mai osservati:
+// verifica nella documentazione Spoki se ti serve un ruolo diverso.
 $result = $spoki->addServiceUser([
     'role' => 'Administrator',
     'email' => 'cliente@esempio.com',
