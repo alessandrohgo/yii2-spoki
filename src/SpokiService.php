@@ -36,21 +36,21 @@ use yii\base\Component;
  */
 class SpokiService extends Component
 {
-    private const string TYPE_GET  = 'GET';
-    private const string TYPE_POST = 'POST';
+    private const TYPE_GET  = 'GET';
+    private const TYPE_POST = 'POST';
 
-    public const string ADD_SV_CLIENTS             = '/partners/add_sv_clients/';
-    public const string CREATE_API_KEY_FOR_ACCOUNT = '/partners/create_api_key_for_account/';
-    public const string CREATE_SUBRECHARGE         = '/partners/create_subrecharge/';
-    public const string ONBOARDING                 = '/partners/onboarding/';
-    public const string SET_PROFITS                = '/partners/set_profits/';
-    public const string GENERATE_PRIVATE_KEY       = '/roles/{id}/generate_private_key/';
-    public const string GET_ROLES                  = '/roles/';
-    public const string ADD_SERVICE_USER           = '/roles/add_service_user/';
-    public const string GET_ACCOUNT_SUMMARY        = '/accounts/{id}/';
-    public const string GET_ACCOUNT_REPORT         = '/partners/get_account_report/';
-    public const string GET_AUTHENTICATION_TOKEN   = '/auth/get_authentication_token/';
-    public const string UPDATE_PARTNER_ROLE        = '/partner-roles/{id}/update_role/';
+    public const ADD_SV_CLIENTS             = '/partners/add_sv_clients/';
+    public const CREATE_API_KEY_FOR_ACCOUNT = '/partners/create_api_key_for_account/';
+    public const CREATE_SUBRECHARGE         = '/partners/create_subrecharge/';
+    public const ONBOARDING                 = '/partners/onboarding/';
+    public const SET_PROFITS                = '/partners/set_profits/';
+    public const GENERATE_PRIVATE_KEY       = '/roles/{id}/generate_private_key/';
+    public const GET_ROLES                  = '/roles/';
+    public const ADD_SERVICE_USER           = '/roles/add_service_user/';
+    public const GET_ACCOUNT_SUMMARY        = '/accounts/{id}/';
+    public const GET_ACCOUNT_REPORT         = '/partners/get_account_report/';
+    public const GET_AUTHENTICATION_TOKEN   = '/auth/get_authentication_token/';
+    public const UPDATE_PARTNER_ROLE        = '/partner-roles/{id}/update_role/';
 
     public string $baseUrl = '';
     public ?string $apiKey = null;

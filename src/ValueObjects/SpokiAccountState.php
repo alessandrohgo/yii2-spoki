@@ -14,12 +14,12 @@ namespace AlessandroHgo\Yii2Spoki\ValueObjects;
  */
 final class SpokiAccountState
 {
-    public const int STATUS_PENDING_REQUEST = 5;
-    public const int STATUS_ONBOARDING_PENDING = 10;
-    public const int STATUS_ONBOARDING_CONFIRM = 15;
-    public const int STATUS_QUEUED_JOB = 20;
-    public const int STATUS_ACTIVE = 25;
-    public const int STATUS_ERROR = 30;
+    public const STATUS_PENDING_REQUEST = 5;
+    public const STATUS_ONBOARDING_PENDING = 10;
+    public const STATUS_ONBOARDING_CONFIRM = 15;
+    public const STATUS_QUEUED_JOB = 20;
+    public const STATUS_ACTIVE = 25;
+    public const STATUS_ERROR = 30;
 
     public function __construct(
         public readonly string $ownerReference,

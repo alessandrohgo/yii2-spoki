@@ -15,12 +15,12 @@ interface SpokiNotifierInterface
      * Evento: pagamento confermato, attivazione Spoki avviata (l'utente deve ancora completare
      * l'onboarding).
      */
-    public const string EVENT_PAYMENT_CONFIRMED = 'payment_confirmed';
+    public const EVENT_PAYMENT_CONFIRMED = 'payment_confirmed';
 
     /**
      * Evento: attivazione Spoki completata con successo (onboarding concluso).
      */
-    public const string EVENT_ACTIVATED = 'activated';
+    public const EVENT_ACTIVATED = 'activated';
 
     /**
      * Invia una notifica relativa a un evento del ciclo di vita di un account Spoki.

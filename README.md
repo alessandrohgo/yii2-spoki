@@ -342,15 +342,16 @@ $spoki->createSubrecharge([
 modulo interno, non da questo SDK):
 
 ```php
-// 6. Trova il ruolo dell'account per email
+// 6. Trova il ruolo dell'account per email, per recuperare il nome completo dell'utente
 $result = $spoki->getRoles('cliente@esempio.com', $accountApiKey);
-$roleId = $result->data->results[0]->id;
+$user = $result->data->results[0]->user;
+$fullName = $user->firstname . ' ' . $user->surname;
 
 // 7. Crea l'utente di servizio (necessario per l'iframe)
 $result = $spoki->addServiceUser([
     'role' => 'Administrator',
     'email' => 'cliente@esempio.com',
-    'name' => 'Mario Rossi',
+    'name' => $fullName,
 ], $accountApiKey);
 $serviceUserId = $result->data->id;
 $emailIframe = $result->data->user->email; // salvala, serve per l'iframe
@@ -423,7 +424,7 @@ $spoki->addSvClients([...]);
 // Usa l'API key DELL'ACCOUNT invece di quella Partner di default — ultimo parametro
 $spoki->getRoles('cliente@esempio.com', $accountApiKey);
 $spoki->addServiceUser([...], $accountApiKey);
-$spoki->generatePrivateKey($roleId, $accountApiKey);
+$spoki->generatePrivateKey($serviceUserId, $accountApiKey);
 ```
 
 Non c'è una regola universale su quale API key serva per ogni endpoint: dipende da cosa stai

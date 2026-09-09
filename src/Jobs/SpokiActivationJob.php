@@ -38,8 +38,8 @@ class SpokiActivationJob extends BaseObject implements JobInterface
      * riceve in centesimi (valore ×100) — fattore di conversione puramente aritmetico, non
      * dipende dall'host.
      */
-    private const int CENTS_TO_SPOKI_MILLESIMI_FACTOR = 10;
-    private const int RECHARGE_AMOUNT_DIVISOR = 2;
+    private const CENTS_TO_SPOKI_MILLESIMI_FACTOR = 10;
+    private const RECHARGE_AMOUNT_DIVISOR = 2;
 
     public string $purchaseReference;
 
