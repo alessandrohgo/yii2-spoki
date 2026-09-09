@@ -1,25 +1,122 @@
 # alessandrohgo/yii2-spoki
 
-SDK per Yii2 per l'integrazione con [Spoki](https://spoki.app) (attivazione account Spoki,
-onboarding, iframe, ricariche): tutte le chiamate API con gestione errori, più un
-modello/tabella generico per salvare gli account. **Nessuna logica di business**: come e quando
-chiamare gli endpoint, quali dati usare, come collegarli al proprio flusso applicativo (ordini,
-pagamenti, fatturazione, email) è responsabilità del modulo interno di ogni progetto che lo
-installa.
+SDK e componenti per Yii2 per l'integrazione con [Spoki](https://spoki.app) (attivazione
+account, onboarding, iframe, ricariche): tutte le chiamate API con gestione errori, un
+modello/tabella generico per salvare gli account, **e** job/servizi/controller già pronti per
+l'attivazione e l'iframe — costruiti su 4 interfacce, così ogni progetto li adatta al proprio
+dominio (ordini, pagamenti, notifiche, storage) scrivendo solo dei piccoli adapter, senza
+riscrivere la logica Spoki.
 
 ## Cosa contiene
 
-- **[`src/SpokiService.php`](src/SpokiService.php)** — **un solo file**, con tutti i 12 metodi
-  (una chiamata API ciascuno). Non è diviso in più classi: apri quel file e trovi tutto.
-  Ogni metodo ritorna sempre un oggetto uniforme: `{ success, status, message, data }`. Nessuna
-  eccezione lanciata per errori HTTP/API — vedi [Gestione errori](#gestione-errori).
-- **`src/Models/SpokiAccount.php`** (+ `SpokiAccountQuery`, `SpokiAccountSearch`) — ActiveRecord
-  generico per salvare gli account Spoki collegati alla propria app. Usa `owner_reference`, un
-  riferimento opaco deciso da chi installa il pacchetto (non presuppone una tabella "user"
-  specifica).
-- **`src/migrations/`** — crea la tabella `spoki_account`.
+- **[`src/SpokiService.php`](src/SpokiService.php)** — client per tutte le chiamate API (un solo
+  file, un metodo per endpoint). Ogni metodo ritorna sempre `{ success, status, message, data }`,
+  mai un'eccezione — vedi [Gestione errori](#gestione-errori).
+- **`src/Contracts/`** — 4 interfacce con cui il pacchetto si disaccoppia dal dominio di ogni
+  progetto (acquisto, fatturazione, notifiche, storage account) — vedi
+  [Come si adatta ad app diverse](#come-si-adatta-ad-app-diverse).
+- **`src/ValueObjects/`** — `SpokiPurchaseContext` e `SpokiAccountState`, i dati scambiati tra il
+  pacchetto e gli adapter di un progetto, senza esporre le classi reali dell'host.
+- **`src/Jobs/`** — `SpokiActivationJob` e `SpokiFinalActivationJob`, pronti all'uso: eseguono
+  tutta la sequenza di chiamate Spoki. Non sono `final`: un progetto può estenderli per
+  aggiungere un passo extra o personalizzare un singolo comportamento.
+- **`src/Services/SpokiOnboardingChecker.php`** — controlla se l'onboarding è stato completato e
+  accoda `SpokiFinalActivationJob`. L'host decide solo *quando* chiamarlo (al caricamento di una
+  pagina, da un cron, da un endpoint AJAX).
+- **`src/Controllers/DashboardController.php`** + **`src/views/dashboard/index.php`** — controller
+  e vista di riferimento per l'iframe, utilizzabili così come sono o estesi/sovrascritti.
+- **`src/Models/SpokiAccount.php`** (+ `SpokiAccountQuery`, `SpokiAccountSearch`) e
+  **`src/migrations/`** — un'implementazione **opzionale e pronta** di storage per
+  `SpokiAccountRepositoryInterface`, con tabella generica (`owner_reference`, nessuna foreign
+  key). Un progetto la usa se le fa comodo, oppure scrive il proprio adapter contro una propria
+  tabella già esistente (vedi sotto) — il pacchetto funziona in entrambi i casi.
 
-## Metodi disponibili
+## Come si adatta ad app diverse
+
+Il pacchetto non conosce `Order`, `User`, o qualunque altra classe di un progetto specifico.
+Comunica solo tramite 4 interfacce, ognuna delle quali un host implementa con un proprio
+adapter, traducendo verso/da il proprio dominio:
+
+| Interfaccia | Cosa astrae | Se il tuo progetto non ne ha bisogno |
+|---|---|---|
+| `SpokiPurchaseGatewayInterface` | Trovare/chiudere l'acquisto collegato all'attivazione | Adapter no-op (nessun concetto di "acquisto") |
+| `SpokiInvoicingInterface` | Emettere un documento di fatturazione | Adapter che ritorna sempre `true` senza fare nulla |
+| `SpokiNotifierInterface` | Inviare una notifica (email o altro canale) | Adapter che non fa nulla |
+| `SpokiAccountRepositoryInterface` | Salvare/leggere lo stato dell'account Spoki | Usa `SpokiAccount` del pacchetto (vedi sopra) invece di scriverne uno tuo |
+
+### Esempio: adattare `SpokiActivationJob` al tuo dominio
+
+```php
+// Nel tuo progetto — adapter verso il TUO modello Order/User esistente
+class MySpokiPurchaseGateway implements SpokiPurchaseGatewayInterface
+{
+    public function findPendingPurchase(string $purchaseReference): ?SpokiPurchaseContext
+    {
+        $order = Order::findOne((int) $purchaseReference);
+        if (!$order) return null;
+
+        return new SpokiPurchaseContext(
+            purchaseReference: $purchaseReference,
+            amountInCents: (int) round($order->total * 100),
+            currency: 'EUR',
+            metadata: [
+                SpokiPurchaseContext::METADATA_OWNER_REFERENCE => (string) $order->user_id,
+                SpokiPurchaseContext::METADATA_EMAIL => $order->email,
+                SpokiPurchaseContext::METADATA_FIRST_NAME => $order->first_name,
+                SpokiPurchaseContext::METADATA_ACCOUNT_NAME => $order->account_name,
+            ],
+        );
+    }
+
+    public function markFulfilled(SpokiPurchaseContext $context): bool
+    {
+        return Order::findOne((int) $context->purchaseReference)->close();
+    }
+}
+```
+
+```php
+// Nel bootstrap della tua app
+Yii::$container->set(SpokiPurchaseGatewayInterface::class, MySpokiPurchaseGateway::class);
+Yii::$container->set(SpokiInvoicingInterface::class, MySpokiInvoicing::class);
+Yii::$container->set(SpokiNotifierInterface::class, MySpokiNotifier::class);
+Yii::$container->set(SpokiAccountRepositoryInterface::class, MySpokiAccountRepository::class);
+```
+
+Fatto questo, `SpokiActivationJob`/`SpokiFinalActivationJob`/`SpokiOnboardingChecker` funzionano
+senza scrivere altro codice — a meno che tu non voglia personalizzare qualcosa: ogni passo
+interno dei job è un metodo `protected`, sovrascrivibile singolarmente. Per ricette pratiche
+(aggiungere un passo, saltarne uno, estendere una vista, creare un job nuovo da zero) vedi
+[`docs/come-estendere-job-e-viste.md`](docs/come-estendere-job-e-viste.md).
+
+### Esempio: personalizzare un job (margini di profitto, un passo extra)
+
+```php
+class MySpokiActivationJob extends \AlessandroHgo\Yii2Spoki\Jobs\SpokiActivationJob
+{
+    protected function profitMargins(): array
+    {
+        return array_merge(parent::profitMargins(), ['conversation_profit_margin' => 40]);
+    }
+
+    protected function afterActivated(SpokiPurchaseContext $context, SpokiAccountState $state): void
+    {
+        Yii::info("Attivazione completata per {$context->purchaseReference}", __METHOD__);
+    }
+}
+```
+
+### Esempio: personalizzare/sostituire l'iframe
+
+`DashboardController` è pensato per essere usato in 3 modi, a scelta:
+
+1. **Così com'è**, registrandolo come controller nella tua app (nessuna riga di codice, solo
+   configurazione).
+2. **Stesso controller, tue viste**: imposta `viewPath` sulla tua cartella per un layout/tema diverso.
+3. **Esteso**: crea una sottoclasse per aggiungere sezioni proprie o cambiare `resolveOwnerReference()`
+   se il concetto di "utente corrente" nella tua app è diverso da `Yii::$app->user->id`.
+
+## Metodi disponibili in `SpokiService`
 
 | Metodo | Endpoint | Uso |
 |---|---|---|
@@ -33,13 +130,18 @@ installa.
 | `addServiceUser` | `POST /roles/add_service_user/` | Crea un utente di servizio |
 | `generatePrivateKey` | `POST /roles/{id}/generate_private_key/` | Genera la private key per l'iframe |
 | `getAccountSummary` | `GET /accounts/{id}/` | Riepilogo account (credito, stato) |
-| `getAuthenticationToken` | `POST /auth/get_authentication_token/` | Genera il token per l'iframe (vedi sotto) |
+| `getAuthenticationToken` | `POST /auth/get_authentication_token/` | Genera il token per l'iframe |
 | `updatePartnerRole` | `POST /partner-roles/{id}/update_role/` | Aggiorna un partner role — **corpo della richiesta non documentato con certezza**, verificare prima dell'uso in produzione |
 
-## Esempio completo: attivare un account come Partner
+Se preferisci non usare i job pronti (es. per una prova rapida, o un caso d'uso minimo), puoi
+comunque chiamare `SpokiService` direttamente — vedi l'esempio completo più sotto.
+
+## Esempio completo: attivare un account come Partner, chiamando l'SDK direttamente
 
 Codice illustrativo (senza gestione errori per brevità — in produzione controlla sempre
-`$result->success` dopo ogni chiamata, vedi [Gestione errori](#gestione-errori)):
+`$result->success` dopo ogni chiamata, vedi [Gestione errori](#gestione-errori)). Se usi
+`SpokiActivationJob`/`SpokiFinalActivationJob` questa sequenza è già fatta per te — questo
+esempio serve a capire cosa succede sotto, o per un uso più diretto:
 
 ```php
 use AlessandroHgo\Yii2Spoki\SpokiService;
@@ -122,13 +224,7 @@ $iframeUrl = "https://spoki.app/dashboard?auth_token={$token}&auth_uid={$uid}&la
 Sezioni valide al posto di `dashboard`: `chats`, `templates`, `automations`, `contacts`, `lists`,
 `tags`. La chiamata a `getAuthenticationToken` va rifatta **a ogni caricamento** dell'iframe (il
 token non è persistente); `generatePrivateKey` va fatto **una sola volta** per account.
-
-## Cosa NON contiene (di proposito)
-
-Nessun job, controller, vista, o interfaccia di disaccoppiamento: quella è logica specifica di
-ogni progetto (es. "attiva l'account dopo che un ordine è stato pagato", "manda un'email quando
-l'attivazione è completata") e va scritta nel modulo interno del progetto che usa questo SDK,
-non qui.
+`DashboardController::actionAuthToken()` espone già questa chiamata come endpoint AJAX pronto.
 
 ## Due modalità d'uso: account Partner e cliente diretto
 
@@ -189,6 +285,10 @@ $onboardingUrl = $result->data->redirect_url;
 
 Chi consuma l'SDK decide cosa fare in caso di errore (log, retry, eccezione propria) — l'SDK si
 limita a segnalarlo in modo uniforme, senza interrompere il flusso con un'eccezione non gestita.
+I job pronti (`SpokiActivationJob`/`SpokiFinalActivationJob`) seguono la stessa regola: un errore
+su una chiamata ritorna `false` da `execute()` (loggato), senza lanciare eccezioni — il job può
+essere ritentato dalla coda senza duplicare le chiamate già andate a buon fine (ogni passo
+controlla se il dato è già presente prima di richiamare l'API).
 
 ## Endpoint documentati da Spoki ma NON implementati in questo SDK
 
@@ -240,14 +340,22 @@ Yii::$container->set(\AlessandroHgo\Yii2Spoki\SpokiService::class, [
 ]);
 ```
 
-Esegui la migrazione (dal progetto ospite, puntando alla cartella del pacchetto):
+Registra i tuoi 4 adapter (vedi [Come si adatta ad app diverse](#come-si-adatta-ad-app-diverse)):
+
+```php
+Yii::$container->set(\AlessandroHgo\Yii2Spoki\Contracts\SpokiPurchaseGatewayInterface::class, MyPurchaseGateway::class);
+Yii::$container->set(\AlessandroHgo\Yii2Spoki\Contracts\SpokiInvoicingInterface::class, MyInvoicing::class);
+Yii::$container->set(\AlessandroHgo\Yii2Spoki\Contracts\SpokiNotifierInterface::class, MyNotifier::class);
+Yii::$container->set(\AlessandroHgo\Yii2Spoki\Contracts\SpokiAccountRepositoryInterface::class, MyAccountRepository::class);
+```
+
+Se usi anche `SpokiAccount`/`SpokiAccountQuery`/`SpokiAccountSearch` del pacchetto (storage
+pronto, invece di scrivere il tuo adapter contro una tua tabella), esegui la migrazione (dal
+progetto ospite, puntando alla cartella del pacchetto):
 
 ```bash
 yii migrate --migrationPath=@vendor/alessandrohgo/yii2-spoki/src/migrations
 ```
-
-Poi, nel modulo interno del tuo progetto, usa `SpokiService` e `SpokiAccount` per costruire la
-tua logica specifica (job, controller, viste).
 
 **Regola per le colonne di `spoki_account`**: la migrazione di questo pacchetto contiene solo
 colonne che corrispondono a un dato realmente restituito da uno dei metodi di `SpokiService`

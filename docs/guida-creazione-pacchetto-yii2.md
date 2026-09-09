@@ -175,3 +175,25 @@ condividere: **a quel punto**, e solo allora, ha senso rivalutare l'approccio a 
 perché chiamarle" (quasi sempre specifico di un progetto) — e default alla scelta più semplice
 (solo SDK) finché non c'è una ragione concreta, con un secondo consumatore reale, per condividere
 anche l'altra parte.
+
+> **Aggiornamento (2026-09-08)**: la ragione concreta è arrivata — durante l'installazione reale
+> in un progetto esistente (non "verde"), è emerso che il solo SDK lasciava reimplementare da zero
+> job, controller, viste, ad ogni progetto. Si è tornati all'approccio a contracts (§7), ma con
+> **due correzioni** rispetto al primo tentativo:
+> 1. **Una quarta interfaccia**, `SpokiAccountRepositoryInterface`, per disaccoppiare anche lo
+>    storage dell'account (non solo acquisto/fatturazione/notifiche) — necessaria perché un
+>    progetto esistente ha quasi sempre già una propria tabella/schema, diverso da quello generico
+>    del pacchetto.
+> 2. **Job non-`final`, con singoli passi `protected`** invece di un job monolitico: un host può
+>    usarli così come sono, o estenderli per un passo extra (`afterActivated()`) o un dettaglio
+>    diverso (es. margini di profitto), senza duplicare tutta la logica.
+>
+> Per controller/viste (iframe, form di attivazione) si è scelto un ibrido: un `DashboardController`
+> di riferimento fornito nel pacchetto (usabile com'è, con vista sovrascrivibile via `viewPath`,
+> o estendibile), ma **senza** provare a rendere generico anche il checkout/pagamento — quello
+> resta specifico di ogni progetto per natura (Stripe vs GoCardless vs nessun pagamento affatto),
+> nessuna interfaccia lo renderebbe davvero riusabile senza un'astrazione sproporzionata.
+>
+> **Lezione**: la scelta B/C non è binaria e permanente — si può applicare C (contracts) a
+> job/servizi e B (solo riferimento) a viste/controller nello stesso pacchetto, in base a quanto
+> ciascuna parte è realisticamente generalizzabile.

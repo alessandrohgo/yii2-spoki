@@ -1,6 +1,6 @@
 {
     "name": "alessandrohgo/yii2-spoki",
-    "description": "Client API Spoki per Yii2 (SDK): tutte le chiamate API, gestione errori, e un modello/tabella generico per salvare gli account. Nessuna logica di business specifica di un progetto.",
+    "description": "Client API Spoki per Yii2 (SDK) con job/servizi/controller di attivazione e iframe pronti all'uso, adattabili a qualunque progetto tramite 4 interfacce (acquisto, fatturazione, notifiche, storage account).",
     "type": "yii2-extension",
     "license": "MIT",
     "authors": [
@@ -17,6 +17,7 @@
     "require": {
         "php": "^8.1",
         "yiisoft/yii2": "^2.0",
+        "yiisoft/yii2-queue": "^2.3",
         "php-curl-class/php-curl-class": "^11.0"
     },
     "require-dev": {
