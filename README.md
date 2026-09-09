@@ -1,8 +1,10 @@
 # alessandrohgo/yii2-spoki
 
 Estensione Yii2 per integrare [Spoki](https://spoki.app) (WhatsApp Business): un client PHP per
-tutte le chiamate API, con gestione errori uniforme. Include anche, come componenti opzionali,
-un modello per salvare gli account e dei job pronti per automatizzare l'attivazione e l'iframe.
+tutte le chiamate API, con gestione errori uniforme. **L'unica cosa che serve davvero è
+`SpokiService`** — tutto il resto (modello per salvare gli account, job pronti per
+l'attivazione, controller per l'iframe) è **completamente facoltativo**: componenti pronti per
+chi vuole automatizzare, mai un vincolo per chi preferisce chiamare l'SDK a mano.
 
 ## Requisiti
 
@@ -222,10 +224,11 @@ Onboarding Link (variante lato account, diversa da `onboarding()` che è quella 
 
 ## Uso avanzato: job, servizi e iframe pronti all'uso
 
-Tutto quello che segue è **opzionale**. Il pacchetto include anche job/servizi/controller
-pronti che automatizzano la sequenza della guida rapida estesa — utili se non vuoi scrivere e
-mantenere tu quella logica (coda, retry se una chiamata fallisce a metà, storage dello stato,
-iframe con JS già funzionante).
+> ⚠️ **Tutto da qui in poi è facoltativo, e non introduce nessun vincolo su come usare l'SDK.**
+> Se ti bastano le chiamate dirette della guida rapida sopra, non devi leggere altro: nessun job,
+> nessuna interfaccia da implementare, nessuna sottoclasse da scrivere. Quello che segue serve
+> **solo** a chi vuole automatizzare la sequenza (coda, retry se una chiamata fallisce a metà,
+> storage dello stato, iframe con JS già pronto) invece di scriverla e mantenerla a mano.
 
 ### Perché servono 4 interfacce
 
@@ -335,21 +338,29 @@ public function actionIndex()
 `SpokiOnboardingChecker` non richiede un `Yii::$container->set()` a parte: Yii2 lo istanzia
 risolvendo automaticamente `SpokiService`/`SpokiAccountRepositoryInterface` dal costruttore.
 
-### Personalizzare i job (aggiungere/saltare un passo)
+### Personalizzare i job pronti (facoltativo — solo se hai scelto di usarli)
 
-Nessuno dei job è `final` e ogni passo interno è un metodo `protected`, pensato per essere
-sovrascritto singolarmente — non serve mai copiare l'intero job per cambiare un dettaglio:
+**`SpokiActivationJob` funziona già così com'è, senza scrivere nessuna sottoclasse** — i margini
+di profitto di default sono tutti zero e sono validi, non è richiesto sovrascrivere nulla per
+usarlo. Estenderlo serve **solo** se vuoi cambiare un comportamento specifico (es. margini
+diversi da zero, o un passo extra) — e riguarda solo chi ha scelto la sezione precedente
+("Come si collegano i pezzi"). Se chiami l'SDK direttamente (Guida rapida), non esiste alcun
+job: passi i margini che vuoi direttamente a `setProfits([...])`, senza nessuna sottoclasse.
+
+Se invece usi `SpokiActivationJob` e vuoi margini diversi da zero, nessuno dei job è `final` e
+ogni passo interno è un metodo `protected`, pensato per essere sovrascritto singolarmente — non
+serve mai copiare l'intero job per cambiare un dettaglio:
 
 ```php
 class MySpokiActivationJob extends \AlessandroHgo\Yii2Spoki\Jobs\SpokiActivationJob
 {
-    // Applica i TUOI margini invece di quelli di default (tutti zero)
+    // Sovrascrivi SOLO se vuoi margini diversi dal default (tutti zero, già validi così)
     protected function profitMargins(): array
     {
         return array_merge(parent::profitMargins(), ['conversation_profit_margin' => 40]);
     }
 
-    // Aggiungi un passo extra dopo l'attivazione
+    // Facoltativo: aggiungi un passo extra dopo l'attivazione
     protected function afterActivated(SpokiPurchaseContext $context, SpokiAccountState $state): void
     {
         Yii::info("Attivazione completata per {$context->purchaseReference}", __METHOD__);
@@ -362,7 +373,10 @@ da zero) sono in [`docs/come-estendere-job-e-viste.md`](docs/come-estendere-job-
 
 ### La dashboard con iframe, pronta all'uso
 
-Registra il controller nella configurazione della tua app — nessun'altra riga di codice:
+Anche questo è facoltativo e indipendente dai job: se preferisci una tua vista, ti basta
+`getAuthenticationToken()` dell'SDK (vedi "Guida rapida estesa" sopra) — nessun controller da
+registrare. Se invece vuoi qualcosa di già pronto, registra il controller nella configurazione
+della tua app — nessun'altra riga di codice:
 
 ```php
 'controllerMap' => [
