@@ -8,8 +8,10 @@ use AlessandroHgo\Yii2Spoki\Contracts\SpokiAccountRepositoryInterface;
 use AlessandroHgo\Yii2Spoki\SpokiService;
 use AlessandroHgo\Yii2Spoki\ValueObjects\SpokiAccountState;
 use Yii;
+use yii\helpers\Url;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
+use yii\web\Response;
 
 /**
  * Controller di base per la dashboard/iframe Spoki.
@@ -52,6 +54,24 @@ class DashboardController extends Controller
     }
 
     /**
+     * Lingua da passare all'iframe Spoki ("it" o "en"). Default: dedotta da Yii::$app->language.
+     * Un host che vuole un'altra logica (es. lingua salvata sul profilo utente) sovrascrive questo metodo.
+     */
+    protected function resolveLanguage(): string
+    {
+        return str_starts_with(Yii::$app->language, 'en') ? 'en' : 'it';
+    }
+
+    /**
+     * URL dell'endpoint che genera il token di autenticazione per l'iframe (letto dal JS del
+     * bundle {@see \AlessandroHgo\Yii2Spoki\Assets\DashboardAsset}).
+     */
+    protected function authTokenUrl(): string
+    {
+        return Url::to(['auth-token']);
+    }
+
+    /**
      * Recupera l'account Spoki attivo dell'utente corrente, o lancia 404 se non esiste/non è attivo.
      */
     protected function ensureActiveAccount(): SpokiAccountState
@@ -80,6 +100,8 @@ class DashboardController extends Controller
         return $this->render('index', [
             'spokiAccount' => $state,
             'sections' => $this->sections(),
+            'language' => $this->resolveLanguage(),
+            'authTokenUrl' => $this->authTokenUrl(),
         ]);
     }
 
@@ -91,7 +113,7 @@ class DashboardController extends Controller
      */
     public function actionAuthToken(): array
     {
-        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+        Yii::$app->response->format = Response::FORMAT_JSON;
         $state = $this->ensureActiveAccount();
 
         /** @var SpokiService $spokiService */

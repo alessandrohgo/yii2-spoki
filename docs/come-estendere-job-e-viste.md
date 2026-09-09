@@ -115,7 +115,10 @@ protected function pushFinalActivationJob(\AlessandroHgo\Yii2Spoki\Jobs\SpokiFin
 
 Poi crei `frontend/views/spoki-dashboard/index.php` copiando la struttura di
 `vendor/alessandrohgo/yii2-spoki/src/views/dashboard/index.php` come punto di partenza, con il
-tuo HTML/CSS.
+tuo HTML/CSS. **Importante**: mantieni la chiamata `DashboardAsset::register($this);` in cima
+e il div `#spoki-embedding` con i suoi `data-auth-token-url`/`data-language` — è quello che il
+JS del pacchetto usa per far funzionare davvero l'iframe. Puoi cambiare tutto il resto (markup
+del menu, CSS, struttura) liberamente.
 
 **Caso B — aggiungere una sezione che il pacchetto non ha** (es. un pulsante "Ricarica credito"
 nella dashboard, specifico del tuo progetto): estendi il controller, aggiungi un'azione, e nella
@@ -148,6 +151,12 @@ protected function resolveOwnerReference(): string
     return (string) Yii::$app->user->identity->company_id; // invece dell'id utente
 }
 ```
+
+**Caso D — sostituire completamente il JS** (es. vuoi integrare l'iframe dentro un componente
+Vue/React invece che con JS puro): non registrare `DashboardAsset`, usa direttamente l'endpoint
+`DashboardController::actionAuthToken()` (restituisce `{success, token, uid}` in JSON) dal tuo
+frontend, con la libreria che preferisci — il pacchetto non impone il proprio JS, lo fornisce
+solo come opzione pronta.
 
 ## 5. Creare un job completamente nuovo, che il pacchetto non fornisce
 

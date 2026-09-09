@@ -27,7 +27,7 @@ class m260903_120000_create_spoki_account_table extends Migration
             'status' => $this->tinyInteger()->notNull()->comment('Stato: 5=pending_request, 10=onboarding_pending, 15=onboarding_confirm, 20=queued_job, 25=active, 30=error'),
             'created_at' => $this->integer()->notNull(),
             'updated_at' => $this->integer()->notNull(),
-        ], 'ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci');
+        ], 'ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
 
         $this->createIndex('idx-spoki_account-spoki_account_id', '{{%spoki_account}}', 'spoki_account_id');
         $this->createIndex('idx-spoki_account-status', '{{%spoki_account}}', 'status');
