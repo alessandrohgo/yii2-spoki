@@ -110,6 +110,37 @@ dominio:
 | `SpokiNotifierInterface` | Inviare una notifica (email o altro canale) | Adapter che non fa nulla |
 | `SpokiAccountRepositoryInterface` | Salvare/leggere lo stato dell'account Spoki | Usa `SpokiAccount` del pacchetto (vedi sopra) invece di scriverne uno tuo |
 
+### Riferimento: campi di `SpokiPurchaseContext` e `SpokiAccountState`
+
+`SpokiPurchaseContext` (costruito dal tuo `SpokiPurchaseGatewayInterface`):
+
+| Campo | Tipo | Note |
+|---|---|---|
+| `purchaseReference` | `string` | Lo stesso valore passato a `findPendingPurchase()` |
+| `amountInCents` | `int` | Importo in centesimi (conversione in "millesimi" Spoki già gestita dal job) |
+| `currency` | `string` | Codice ISO 4217 (es. `EUR`) |
+| `metadata[SpokiPurchaseContext::METADATA_OWNER_REFERENCE]` | `string` | **Obbligatorio** — riferimento owner, es. id utente |
+| `metadata[SpokiPurchaseContext::METADATA_EMAIL]` | `string` | **Obbligatorio** |
+| `metadata[SpokiPurchaseContext::METADATA_FIRST_NAME]` | `string` | **Obbligatorio** |
+| `metadata[SpokiPurchaseContext::METADATA_ACCOUNT_NAME]` | `string` | **Obbligatorio** |
+| `metadata[SpokiPurchaseContext::METADATA_COUNTRY]` | `string` | Opzionale, default `'it'` |
+| `metadata[SpokiPurchaseContext::METADATA_COUNTRY_CODE]` | `string` | Opzionale, default `'IT'` |
+| `metadata['...']` (chiavi tue, libere) | `mixed` | Per dati che ti servono solo nel tuo adapter (es. l'id del tuo ordine) — il job del pacchetto le ignora |
+
+`SpokiAccountState` (letto/scritto dal tuo `SpokiAccountRepositoryInterface`, immutabile —
+usa `->with([...])` per un aggiornamento):
+
+| Campo | Tipo | Impostato da |
+|---|---|---|
+| `ownerReference` | `string` | Te, alla creazione |
+| `spokiAccountId` | `?int` | `SpokiActivationJob` (da `addSvClients`) |
+| `apiKey` | `?string` | `SpokiActivationJob` (da `createApiKeyForAccount`) |
+| `email` | `?string` | Te, alla creazione |
+| `emailIframe` | `?string` | `SpokiFinalActivationJob` (da `addServiceUser`) |
+| `onboardingUrl` | `?string` | `SpokiActivationJob` (da `onboarding`) |
+| `privateKey` | `?string` | `SpokiFinalActivationJob` (da `generatePrivateKey`) |
+| `status` | `int` | Uno tra `SpokiAccountState::STATUS_*`, aggiornato ad ogni fase |
+
 ### Esempio: adattare `SpokiActivationJob` al tuo dominio (progetto CON un proprio sistema ordini)
 
 ```php
@@ -187,6 +218,33 @@ senza scrivere altro codice — a meno che tu non voglia personalizzare qualcosa
 interno dei job è un metodo `protected`, sovrascrivibile singolarmente. Per altre ricette
 pratiche (aggiungere un passo, saltarne uno, estendere una vista, creare un job nuovo da zero)
 vedi [`docs/come-estendere-job-e-viste.md`](docs/come-estendere-job-e-viste.md).
+
+### Come si collegano i pezzi: il flusso completo, punto per punto
+
+| Quando | Cosa fai | Cosa succede |
+|---|---|---|
+| Il pagamento/attivazione è confermato (nel tuo webhook, o dove lo gestisci tu) | `Yii::$app->queue->push(new SpokiActivationJob(['purchaseReference' => (string) $order->id]))` | Crea l'account su Spoki, genera l'onboarding, aggiorna lo stato tramite il tuo `SpokiAccountRepositoryInterface` |
+| Vuoi controllare se il cliente ha completato l'onboarding (al caricamento di una pagina, da un cron, da un endpoint AJAX — decidi tu) | `Yii::$container->get(SpokiOnboardingChecker::class)->check($ownerReference)` | Se completato, accoda automaticamente `SpokiFinalActivationJob` |
+| Il job finale è stato eseguito | (niente da fare) | L'account è `STATUS_ACTIVE`, pronto per l'iframe |
+| Il cliente vuole vedere la dashboard | Registra/estendi `DashboardController` (vedi sotto) | Mostra l'iframe, già funzionante |
+
+**Esempio concreto per il secondo punto** (dove nel tuo progetto oggi controlli lo stato,
+es. in un controller che carica una pagina):
+
+```php
+use AlessandroHgo\Yii2Spoki\Services\SpokiOnboardingChecker;
+
+public function actionIndex()
+{
+    Yii::$container->get(SpokiOnboardingChecker::class)->check((string) Yii::$app->user->id);
+    // ... resto della tua action (mostra la pagina, ecc.)
+}
+```
+
+Nota: `SpokiOnboardingChecker` non è registrato di default nel container — Yii2 lo istanzia
+automaticamente risolvendo `SpokiService` e `SpokiAccountRepositoryInterface` dal costruttore
+(dependency injection automatica), quindi non serve un `Yii::$container->set()` esplicito per
+lui, basta che tu abbia già registrato `SpokiAccountRepositoryInterface`.
 
 ### Esempio: personalizzare un job (margini di profitto, un passo extra)
 
