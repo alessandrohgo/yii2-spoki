@@ -47,6 +47,12 @@ class SpokiFinalActivationJob extends BaseObject implements JobInterface
             return false;
         }
 
+        if ($state->status === SpokiAccountState::STATUS_ACTIVE) {
+            Yii::info("Account già ACTIVE per ownerReference=$this->ownerReference, nessuna azione (esecuzione duplicata del job)", __METHOD__);
+
+            return true;
+        }
+
         $fullName = $this->findUserRole($state);
         if ($fullName === null) {
             $this->repository()->save($state->with(['status' => SpokiAccountState::STATUS_ERROR]));

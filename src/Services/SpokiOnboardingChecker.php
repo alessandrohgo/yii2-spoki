@@ -54,12 +54,12 @@ class SpokiOnboardingChecker
             return;
         }
 
-        $state = $this->repository->save($state->with(['status' => SpokiAccountState::STATUS_ONBOARDING_CONFIRM]));
         Yii::info("Onboarding confermato per ownerReference=$ownerReference, accodo SpokiFinalActivationJob", __METHOD__);
-
         $this->pushFinalActivationJob($this->createFinalActivationJob($ownerReference));
 
-        $this->repository->save($state->with(['status' => SpokiAccountState::STATUS_QUEUED_JOB]));
+        // Lo stato resta ONBOARDING_PENDING finché SpokiFinalActivationJob non completa (passa
+        // ad ACTIVE) o fallisce (ERROR) — non serve uno stato intermedio dedicato alla coda:
+        // la protezione da doppio accodamento è nel job stesso (vedi il suo controllo iniziale).
     }
 
     /**

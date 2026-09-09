@@ -34,17 +34,22 @@ Partner:
 
 ### Stati dell'account, passo per passo
 
-`SpokiAccountState::$status` (o la colonna `status` se usi `SpokiAccount` del pacchetto)
-segue esattamente i 7 passaggi sopra:
+`SpokiAccountState::$status` (o la colonna `status` se usi `SpokiAccount` del pacchetto) usa
+solo 4 stati — volutamente pochi, validi sia che tu usi i job pronti sia che tu chiami l'SDK a
+mano: non ci sono stati "solo per chi usa la coda" (es. "job in coda"), quella protezione è
+gestita internamente da `SpokiFinalActivationJob` stesso (vedi sotto), non da uno stato dedicato.
 
 | Stato | Numero | Significa che... |
 |---|---|---|
 | `STATUS_PENDING_REQUEST` | 5 | Hai iniziato la creazione, ma `addSvClients` non ha ancora risposto con successo |
-| `STATUS_ONBOARDING_PENDING` | 10 | Account creato, link di onboarding generato, in attesa che il cliente lo completi (passo 4-5) |
-| `STATUS_ONBOARDING_CONFIRM` | 15 | `SpokiOnboardingChecker` ha rilevato che il cliente ha completato l'onboarding, il job finale sta per partire |
-| `STATUS_QUEUED_JOB` | 20 | Il job finale (`SpokiFinalActivationJob`) è stato accodato, in attesa di esecuzione |
+| `STATUS_ONBOARDING_PENDING` | 10 | Account creato, link di onboarding generato, in attesa che il cliente lo completi (passo 4-5) — resta in questo stato anche mentre `SpokiFinalActivationJob` è in coda, se lo usi |
 | `STATUS_ACTIVE` | 25 | Tutto completato (passo 6-7): l'iframe funziona |
 | `STATUS_ERROR` | 30 | Una chiamata è fallita in un punto qualsiasi — controlla i log, il job può essere ritentato |
+
+`SpokiFinalActivationJob` controlla da solo, all'inizio, se l'account è già `ACTIVE`: se sì,
+non fa nulla e ritorna subito con successo — questo evita di creare un secondo utente di
+servizio/private key se il job viene accodato due volte per errore, senza bisogno di uno stato
+dedicato "in coda" nel contratto generico.
 
 ### Cosa sono i margini di profitto (`setProfits`)
 

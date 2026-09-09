@@ -93,7 +93,9 @@ class SpokiOnboardingCheckerTest extends TestCase
 
         $this->assertCount(1, $checker->pushedJobs);
         $this->assertSame('owner-1', $checker->pushedJobs[0]->ownerReference);
-        $this->assertSame(SpokiAccountState::STATUS_QUEUED_JOB, $this->repository->findByOwnerReference('owner-1')->status);
+        // Lo stato resta ONBOARDING_PENDING: sarà SpokiFinalActivationJob a passare ad ACTIVE
+        // (o ERROR) — nessuno stato intermedio dedicato alla coda.
+        $this->assertSame(SpokiAccountState::STATUS_ONBOARDING_PENDING, $this->repository->findByOwnerReference('owner-1')->status);
     }
 
     /**

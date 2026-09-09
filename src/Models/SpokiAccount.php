@@ -33,8 +33,6 @@ class SpokiAccount extends ActiveRecord
 {
     public const STATUS_PENDING_REQUEST = 5;
     public const STATUS_ONBOARDING_PENDING = 10;
-    public const STATUS_ONBOARDING_CONFIRM = 15;
-    public const STATUS_QUEUED_JOB = 20;
     public const STATUS_ACTIVE = 25;
     public const STATUS_ERROR = 30;
 
@@ -69,7 +67,7 @@ class SpokiAccount extends ActiveRecord
             [['spoki_account_id', 'status', 'created_at', 'updated_at'], 'integer'],
             [['onboarding_url', 'private_key'], 'string', 'max' => 255],
             [['api_key', 'email', 'email_iframe'], 'string', 'max' => 255],
-            [['status'], 'in', 'range' => [self::STATUS_PENDING_REQUEST, self::STATUS_ONBOARDING_PENDING, self::STATUS_ONBOARDING_CONFIRM, self::STATUS_QUEUED_JOB, self::STATUS_ACTIVE, self::STATUS_ERROR]],
+            [['status'], 'in', 'range' => [self::STATUS_PENDING_REQUEST, self::STATUS_ONBOARDING_PENDING, self::STATUS_ACTIVE, self::STATUS_ERROR]],
             [['owner_reference'], 'unique'],
         ];
     }
@@ -120,22 +118,6 @@ class SpokiAccount extends ActiveRecord
     }
 
     /**
-     * Verifica se l'onboarding è stato confermato.
-     */
-    public function isOnboardingConfirmed(): bool
-    {
-        return $this->status === self::STATUS_ONBOARDING_CONFIRM;
-    }
-
-    /**
-     * Verifica se il job finale è in coda.
-     */
-    public function isQueuedJob(): bool
-    {
-        return $this->status === self::STATUS_QUEUED_JOB;
-    }
-
-    /**
      * Verifica se l'account è attivo.
      */
     public function isActive(): bool
@@ -170,8 +152,6 @@ class SpokiAccount extends ActiveRecord
         return [
             self::STATUS_PENDING_REQUEST => Yii::t('app', 'Richiesta attivazione in attesa'),
             self::STATUS_ONBOARDING_PENDING => Yii::t('app', 'Onboarding in attesa'),
-            self::STATUS_ONBOARDING_CONFIRM => Yii::t('app', 'Onboarding confermato'),
-            self::STATUS_QUEUED_JOB => Yii::t('app', 'Job finale in coda'),
             self::STATUS_ACTIVE => Yii::t('app', 'Attivo'),
             self::STATUS_ERROR => Yii::t('app', 'Errore'),
         ];

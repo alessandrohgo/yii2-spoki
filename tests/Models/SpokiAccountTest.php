@@ -20,7 +20,7 @@ class SpokiAccountTest extends TestCase
     }
 
     /**
-     * Verifica che statusList() copra esattamente le 6 costanti di stato definite, senza
+     * Verifica che statusList() copra esattamente le 4 costanti di stato definite, senza
      * duplicati o valori dimenticati.
      */
     public function testStatusListCoversAllStatusConstants(): void
@@ -28,8 +28,6 @@ class SpokiAccountTest extends TestCase
         $expectedStatuses = [
             SpokiAccount::STATUS_PENDING_REQUEST,
             SpokiAccount::STATUS_ONBOARDING_PENDING,
-            SpokiAccount::STATUS_ONBOARDING_CONFIRM,
-            SpokiAccount::STATUS_QUEUED_JOB,
             SpokiAccount::STATUS_ACTIVE,
             SpokiAccount::STATUS_ERROR,
         ];

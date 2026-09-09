@@ -88,6 +88,28 @@ class SpokiFinalActivationJobTest extends TestCase
         $this->assertSame('owner-1', $this->notifierCalls[0][1]);
     }
 
+    /**
+     * Verifica la protezione idempotente: se il job viene eseguito due volte (es. accodato due
+     * volte per errore), la seconda esecuzione su un account già ACTIVE non richiama nessuna
+     * API Spoki, evitando di creare un secondo utente di servizio/private key inutilmente.
+     */
+    public function testExecuteIsIdempotentWhenAccountAlreadyActive(): void
+    {
+        $this->repository->save(new SpokiAccountState(
+            ownerReference: 'owner-1',
+            spokiAccountId: 555,
+            apiKey: 'key-abc',
+            email: 'cliente@esempio.com',
+            status: SpokiAccountState::STATUS_ACTIVE,
+        ));
+
+        $job = new SpokiFinalActivationJob(['ownerReference' => 'owner-1']);
+        $this->assertTrue($job->execute(null));
+
+        $this->assertSame([], $this->spokiService->calls);
+        $this->assertSame([], $this->notifierCalls);
+    }
+
     public function testExecuteSetsErrorStatusWhenGetRolesFails(): void
     {
         $this->repository->save(new SpokiAccountState(ownerReference: 'owner-1', spokiAccountId: 555, apiKey: 'key-abc', email: 'cliente@esempio.com'));

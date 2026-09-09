@@ -16,8 +16,6 @@ final class SpokiAccountState
 {
     public const STATUS_PENDING_REQUEST = 5;
     public const STATUS_ONBOARDING_PENDING = 10;
-    public const STATUS_ONBOARDING_CONFIRM = 15;
-    public const STATUS_QUEUED_JOB = 20;
     public const STATUS_ACTIVE = 25;
     public const STATUS_ERROR = 30;
 

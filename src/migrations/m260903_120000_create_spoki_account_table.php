@@ -24,7 +24,7 @@ class m260903_120000_create_spoki_account_table extends Migration
             'api_key' => $this->string(255)->null()->comment('API Key per dashboard Spoki'),
             'onboarding_url' => $this->string(255)->null()->comment('URL temporaneo per onboarding'),
             'private_key' => $this->string(255)->null()->comment('Private key per iframe (crittografata)'),
-            'status' => $this->tinyInteger()->notNull()->comment('Stato: 5=pending_request, 10=onboarding_pending, 15=onboarding_confirm, 20=queued_job, 25=active, 30=error'),
+            'status' => $this->tinyInteger()->notNull()->comment('Stato: 5=pending_request, 10=onboarding_pending, 25=active, 30=error'),
             'created_at' => $this->integer()->notNull(),
             'updated_at' => $this->integer()->notNull(),
         ], 'ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
